@@ -35,6 +35,19 @@ write_files:
     permissions: "0400"
     content: |
       ${indent(6, ca_certificate)}
+  #Bootstrap Config Credentials
+%{ if pki_auth && length(initial_masters) > 0 ~}
+  - path: /etc/elasticsearch/tls/elastic.key
+    owner: root:root
+    permissions: "0400"
+    content: |
+      ${indent(6, elastic_key)}
+  - path: /etc/elasticsearch/tls/elastic.pem
+    owner: root:root
+    permissions: "0400"
+    content: |
+      ${indent(6, join("", [elastic_certificate, ca_certificate]))}
+%{ endif ~}
   #Elasticsearch configuration files
   - path: /etc/elasticsearch/jvm.options
     owner: root:root
@@ -53,7 +66,7 @@ write_files:
       14-:-XX:InitiatingHeapOccupancyPercent=30
 
       #JVM temporary directory
-      -Djava.io.tmpdir=/opt/es-temp
+      -Djava.io.tmpdir=/opt/java-temp
 
       #Heap dump
       -XX:+HeapDumpOnOutOfMemoryError
@@ -68,58 +81,13 @@ write_files:
     owner: root:root
     permissions: "0444"
     content: |
-      xpack:
-        security:
-          enabled: true
-          authc:
-%{ if pki_auth ~}
-            realms:
-              pki:
-                pki1:
-                  order: 1
-%{ else ~}
-            anonymous:
-              username: anonymous_user
-              roles: superuser
-              authz_exception: true
-%{ endif ~}
-          http:
-            ssl:
-              enabled: true
-              key: "/etc/elasticsearch/tls/server.key"
-              certificate: "/etc/elasticsearch/tls/server.pem"
-              certificate_authorities: ["/etc/elasticsearch/tls/ca.pem"]
-          transport:
-            ssl:
-              enabled: true
-              verification_mode: certificate
-              key: "/etc/elasticsearch/tls/server.key"
-              certificate: "/etc/elasticsearch/tls/server.pem"
-              certificate_authorities: ["/etc/elasticsearch/tls/ca.pem"]
-      path:
-        data: /var/lib/elasticsearch
-      network:
-        host: 0.0.0.0
-      discovery:
-        seed_hosts: "masters.${domain}"
-      node:
-        master: ${is_master ? "true" : "false"}
-        data: ${is_master ? "false" : "true"}
-        ingest: ${is_master ? "false" : "true"}
-      cluster:
-        name: ${cluster_name}
-        initial_master_nodes:
-%{ for master in initial_masters ~}
-          - ${master}
-%{ endfor ~}
-%{ if s3_access_key != "" ~}
-      s3:
-        client:
-          default:
-            endpoint: ${s3_endpoint}
-            protocol: ${s3_protocol}
-            #path_style_access: true
-            #signer_override: "S3SignerType"
+      ${indent(6, elasticsearch_boot_configuration)}
+%{ if length(initial_masters) > 0 ~}
+  - path: /etc/elasticsearch/elasticsearch-runtime.yml
+    owner: root:root
+    permissions: "0444"
+    content: |
+      ${indent(6, elasticsearch_runtime_configuration)}
 %{ endif ~}
   #Elasticsearch systemd configuration
   - path: /usr/local/bin/set_es_heap
@@ -133,6 +101,31 @@ write_files:
       HEAP_SIZE=$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') / 2 / 1024 ))
 %{ endif ~}
       sed "s/__HEAP_SIZE__/$HEAP_SIZE/g" -i /etc/elasticsearch/jvm.options
+  #See: https://www.elastic.co/guide/en/elasticsearch/reference/current/important-settings.html#initial_master_nodes
+%{ if length(initial_masters) > 0 ~}
+  - path: /usr/local/bin/boostrap_es_config
+    owner: root:root
+    permissions: "0555"
+    content: |
+      #!/bin/sh
+%{ if pki_auth ~}
+      STATUS=$(curl --cert /etc/elasticsearch/tls/elastic.pem --key /etc/elasticsearch/tls/elastic.key --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
+      while [ "$STATUS" != "\"green\"" ]; do
+          sleep 1
+          echo "Waiting for server to join cluster with green status before removing initial master nodes from configuration"
+          STATUS=$(curl --cert /etc/elasticsearch/tls/elastic.pem --key /etc/elasticsearch/tls/elastic.key --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
+      done
+      rm /etc/elasticsearch/tls/elastic.key
+      rm /etc/elasticsearch/tls/elastic.pem
+%{ else ~}
+      STATUS=$(curl --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
+      while [ "$STATUS" != "\"green\"" ]; do
+          sleep 1
+          STATUS=$(curl --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
+      done
+%{ endif ~}
+      mv /etc/elasticsearch/elasticsearch-runtime.yml /etc/elasticsearch/elasticsearch.yml
+%{ endif ~}
   - path: /etc/systemd/system/elasticsearch.service
     owner: root:root
     permissions: "0444"
@@ -146,6 +139,7 @@ write_files:
       [Service]
       Environment=ES_PATH_CONF=/etc/elasticsearch
       Environment=LOG4J_FORMAT_MSG_NO_LOOKUPS=true
+      Environment=ES_TMPDIR=/opt/es-temp
       #https://www.elastic.co/guide/en/elasticsearch/reference/current/system-config.html
       LimitNOFILE=65535
       LimitNPROC=4096
@@ -196,6 +190,7 @@ packages:
   - gnupg-agent
   - software-properties-common
   - libdigest-sha-perl
+  - jq
 runcmd:
   #Add dns servers
   - echo "DNS=${join(" ", nameserver_ips)}" >> /etc/systemd/resolved.conf
@@ -212,7 +207,11 @@ runcmd:
   - rm /opt/elasticsearch-7.17.0-linux-x86_64.tar.gz /opt/elasticsearch-7.17.0-linux-x86_64.tar.gz.sha512
   ##Setup requisite directories, non-templated files and permissions
   - mkdir -p /var/lib/elasticsearch && chown -R elasticsearch:elasticsearch /var/lib/elasticsearch
+  ##When the doc says one thing: https://www.elastic.co/guide/en/elasticsearch/reference/current/important-settings.html#es-tmpdir
+  ##And the code says another: https://github.com/elastic/elasticsearch/blob/7.17/server/src/main/java/org/elasticsearch/bootstrap/Security.java#L213
+  ##You do both if you can and then you are covered no matter what
   - mkdir -p /opt/es-temp && chown -R elasticsearch:elasticsearch /opt/es-temp
+  - mkdir -p /opt/java-temp && chown -R elasticsearch:elasticsearch /opt/java-temp
   - cp /opt/es/config/log4j2.properties /etc/elasticsearch/log4j2.properties
   - chown -R elasticsearch:elasticsearch /etc/elasticsearch
   ##Runtime configuration adjustments
@@ -241,3 +240,6 @@ runcmd:
   - rm -r /opt/node_exporter && rm /opt/node_exporter.tar.gz
   - systemctl enable node-exporter
   - systemctl start node-exporter
+%{ if length(initial_masters) > 0 ~}
+  - /usr/local/bin/boostrap_es_config
+%{ endif ~}

@@ -19,6 +19,36 @@ locals {
     mac = macvtap_interface.mac
     hostname = null
   }]
+  es_bootstrap_config = templatefile(
+    "${path.module}/files/elasticsearch.yml.tpl",
+    {
+      pki_auth = var.pki_auth
+      domain = var.domain
+      cluster_name = var.cluster_name
+      is_master = var.is_master
+      initial_masters = var.initial_masters
+      s3_endpoint = var.s3_endpoint
+      s3_protocol = var.s3_protocol
+    }
+  )
+  es_runtime_config = templatefile(
+    "${path.module}/files/elasticsearch.yml.tpl",
+    {
+      pki_auth = var.pki_auth
+      domain = var.domain
+      cluster_name = var.cluster_name
+      is_master = var.is_master
+      initial_masters = []
+      s3_endpoint = var.s3_endpoint
+      s3_protocol = var.s3_protocol
+    }
+  )
+}
+
+module "elastic_credentials" {
+  count = var.pki_auth ? 1 : 0
+  source = "./client-pki-credentials"
+  ca = var.ca.certificate
 }
 
 data "template_cloudinit_config" "user_data" {
@@ -30,11 +60,9 @@ data "template_cloudinit_config" "user_data" {
       "${path.module}/files/user_data.yaml.tpl", 
       {
         nameserver_ips = var.nameserver_ips
-        domain = var.domain
         is_master = var.is_master
         initial_masters = var.initial_masters
         node_name = var.name
-        cluster_name = var.cluster_name
         s3_endpoint = var.s3_endpoint
         s3_protocol = var.s3_protocol
         s3_access_key = var.s3_access_key
@@ -46,6 +74,10 @@ data "template_cloudinit_config" "user_data" {
         ssh_admin_user = var.ssh_admin_user
         admin_user_password = var.admin_user_password
         ssh_admin_public_key = var.ssh_admin_public_key
+        elasticsearch_boot_configuration = local.es_bootstrap_config
+        elasticsearch_runtime_configuration = local.es_runtime_config
+        elastic_key = var.pki_auth ? module.elastic_credentials.0.key : ""
+        elastic_certificate = var.pki_auth ? module.elastic_credentials.0.certificate : ""
       }
     )
   }
