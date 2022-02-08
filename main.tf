@@ -48,6 +48,7 @@ locals {
 module "elastic_credentials" {
   count = var.pki_auth ? 1 : 0
   source = "./client-pki-credentials"
+  username = "elastic"
   ca = var.ca.certificate
 }
 
