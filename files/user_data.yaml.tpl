@@ -111,8 +111,8 @@ write_files:
 %{ if pki_auth ~}
       STATUS=$(curl --cert /etc/elasticsearch/tls/elastic.pem --key /etc/elasticsearch/tls/elastic.key --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       while [ "$STATUS" != "\"green\"" ]; do
-          sleep 1
           echo "Waiting for server to join cluster with green status before removing initial master nodes from configuration"
+          sleep 1
           STATUS=$(curl --cert /etc/elasticsearch/tls/elastic.pem --key /etc/elasticsearch/tls/elastic.key --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       done
       rm /etc/elasticsearch/tls/elastic.key
@@ -120,6 +120,7 @@ write_files:
 %{ else ~}
       STATUS=$(curl --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       while [ "$STATUS" != "\"green\"" ]; do
+          echo "Waiting for server to join cluster with green status before removing initial master nodes from configuration"
           sleep 1
           STATUS=$(curl --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       done
