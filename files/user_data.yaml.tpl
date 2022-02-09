@@ -108,10 +108,10 @@ write_files:
     permissions: "0555"
     content: |
       #!/bin/sh
+      echo "Waiting for server to join cluster with green status before removing initial master nodes from configuration"
 %{ if pki_auth ~}
       STATUS=$(curl --cert /etc/elasticsearch/tls/elastic.pem --key /etc/elasticsearch/tls/elastic.key --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       while [ "$STATUS" != "\"green\"" ]; do
-          echo "Waiting for server to join cluster with green status before removing initial master nodes from configuration"
           sleep 1
           STATUS=$(curl --cert /etc/elasticsearch/tls/elastic.pem --key /etc/elasticsearch/tls/elastic.key --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       done
@@ -120,12 +120,12 @@ write_files:
 %{ else ~}
       STATUS=$(curl --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       while [ "$STATUS" != "\"green\"" ]; do
-          echo "Waiting for server to join cluster with green status before removing initial master nodes from configuration"
           sleep 1
           STATUS=$(curl --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       done
 %{ endif ~}
       mv /etc/elasticsearch/elasticsearch-runtime.yml /etc/elasticsearch/elasticsearch.yml
+      echo "Server has joined cluster with green status, initial master nodes removed from configuration"
 %{ endif ~}
   - path: /etc/systemd/system/elasticsearch.service
     owner: root:root
