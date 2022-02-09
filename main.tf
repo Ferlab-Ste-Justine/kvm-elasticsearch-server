@@ -49,7 +49,7 @@ module "elastic_credentials" {
   count = var.pki_auth ? 1 : 0
   source = "./client-pki-credentials"
   username = "elastic"
-  ca = var.ca.certificate
+  ca = var.ca
 }
 
 data "template_cloudinit_config" "user_data" {
