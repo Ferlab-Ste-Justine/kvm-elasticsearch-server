@@ -22,7 +22,6 @@ locals {
   es_bootstrap_config = templatefile(
     "${path.module}/files/elasticsearch.yml.tpl",
     {
-      pki_auth = var.pki_auth
       domain = var.domain
       cluster_name = var.cluster_name
       is_master = var.is_master
@@ -34,7 +33,6 @@ locals {
   es_runtime_config = templatefile(
     "${path.module}/files/elasticsearch.yml.tpl",
     {
-      pki_auth = var.pki_auth
       domain = var.domain
       cluster_name = var.cluster_name
       is_master = var.is_master
@@ -43,13 +41,6 @@ locals {
       s3_protocol = var.s3_protocol
     }
   )
-}
-
-module "elastic_credentials" {
-  count = var.pki_auth ? 1 : 0
-  source = "./client-pki-credentials"
-  username = "elastic"
-  ca = var.ca
 }
 
 data "template_cloudinit_config" "user_data" {
@@ -71,14 +62,11 @@ data "template_cloudinit_config" "user_data" {
         server_key = tls_private_key.key.private_key_pem
         server_certificate = tls_locally_signed_cert.certificate.cert_pem
         ca_certificate = var.ca.certificate
-        pki_auth = var.pki_auth
         ssh_admin_user = var.ssh_admin_user
         admin_user_password = var.admin_user_password
         ssh_admin_public_key = var.ssh_admin_public_key
         elasticsearch_boot_configuration = local.es_bootstrap_config
         elasticsearch_runtime_configuration = local.es_runtime_config
-        elastic_key = var.pki_auth ? module.elastic_credentials.0.key : ""
-        elastic_certificate = var.pki_auth ? module.elastic_credentials.0.certificate : ""
       }
     )
   }

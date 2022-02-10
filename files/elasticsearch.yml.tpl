@@ -2,17 +2,10 @@ xpack:
   security:
     enabled: true
     authc:
-%{ if pki_auth ~}
-      realms:
-        pki:
-          pki1:
-            order: 1
-%{ else ~}
       anonymous:
         username: anonymous_user
         roles: superuser
         authz_exception: true
-%{ endif ~}
     http:
       ssl:
         enabled: true

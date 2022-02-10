@@ -154,9 +154,3 @@ variable "key_length" {
   type = number
   default = 4096
 }
-
-variable "pki_auth" {
-  description = "Whether or not the pki auth is enabled"
-  type        = bool
-  default     = false
-}

@@ -35,19 +35,6 @@ write_files:
     permissions: "0400"
     content: |
       ${indent(6, ca_certificate)}
-  #Bootstrap Config Credentials
-%{ if pki_auth && length(initial_masters) > 0 ~}
-  - path: /etc/elasticsearch/tls/elastic.key
-    owner: root:root
-    permissions: "0400"
-    content: |
-      ${indent(6, elastic_key)}
-  - path: /etc/elasticsearch/tls/elastic.pem
-    owner: root:root
-    permissions: "0400"
-    content: |
-      ${indent(6, join("", [elastic_certificate, ca_certificate]))}
-%{ endif ~}
   #Elasticsearch configuration files
   - path: /etc/elasticsearch/jvm.options
     owner: root:root
@@ -109,21 +96,11 @@ write_files:
     content: |
       #!/bin/sh
       echo "Waiting for server to join cluster with green status before removing initial master nodes from configuration"
-%{ if pki_auth ~}
-      STATUS=$(curl --silent --cert /etc/elasticsearch/tls/elastic.pem --key /etc/elasticsearch/tls/elastic.key --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
-      while [ "$STATUS" != "\"green\"" ]; do
-          sleep 1
-          STATUS=$(curl --silent --cert /etc/elasticsearch/tls/elastic.pem --key /etc/elasticsearch/tls/elastic.key --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
-      done
-      rm /etc/elasticsearch/tls/elastic.key
-      rm /etc/elasticsearch/tls/elastic.pem
-%{ else ~}
       STATUS=$(curl --silent --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       while [ "$STATUS" != "\"green\"" ]; do
           sleep 1
           STATUS=$(curl --silent --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
       done
-%{ endif ~}
       mv /etc/elasticsearch/elasticsearch-runtime.yml /etc/elasticsearch/elasticsearch.yml
       echo "Server has joined cluster with green status, initial master nodes removed from configuration"
 %{ endif ~}
