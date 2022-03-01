@@ -19,6 +19,7 @@ users:
     ssh_authorized_keys:
       - "${ssh_admin_public_key}"
 write_files:
+%{ if ca_certificate != "" ~}
   #Elasticsearch tls files
   - path: /etc/elasticsearch/tls/server.key
     owner: root:root
@@ -35,6 +36,7 @@ write_files:
     permissions: "0400"
     content: |
       ${indent(6, ca_certificate)}
+%{ endif ~}
   #Elasticsearch configuration files
   - path: /etc/elasticsearch/jvm.options
     owner: root:root
@@ -96,10 +98,10 @@ write_files:
     content: |
       #!/bin/sh
       echo "Waiting for server to join cluster with green status before removing initial master nodes from configuration"
-      STATUS=$(curl --silent --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
+      STATUS=$(curl --silent --cacert /etc/elasticsearch/tls/ca.pem ${request_protocol}://127.0.0.1:9200/_cluster/health | jq ".status")
       while [ "$STATUS" != "\"green\"" ]; do
           sleep 1
-          STATUS=$(curl --silent --cacert /etc/elasticsearch/tls/ca.pem https://127.0.0.1:9200/_cluster/health | jq ".status")
+          STATUS=$(curl --silent --cacert /etc/elasticsearch/tls/ca.pem ${request_protocol}://127.0.0.1:9200/_cluster/health | jq ".status")
       done
       mv /etc/elasticsearch/elasticsearch-runtime.yml /etc/elasticsearch/elasticsearch.yml
       echo "Server has joined cluster with green status, initial master nodes removed from configuration"
