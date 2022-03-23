@@ -75,11 +75,15 @@ It may or may not work fine in **Aws s3**, but after days of trying to make it w
 - **initial_masters**: List of host names for the initial masters to bootstrap the cluster when it is created with its initial nodes. Should be empty for additional servers that will be added to the cluster later on.
 - **nameserver_ips**: Ips of nameservers that are to be used for master discovery. This list can be left blank if the network's dns servers already fulfill that role.
 - **is_master**: Whether the server is a master. Otherwise, it will be a worker.
+- **tls_enabled**: Whether the elasticsearch server should communicate over https or regular http.
+
+The following variables are used to serve traffic over tls, if enabled:
 - **ca**: Certificate authority used to sign the certificate of the server. Should have the following keys: key, key_algorithm, certificate
 - **organization**: The es server certificate's organization. Defaults to **Ferlab**
 - **certificate_validity_period**: The validity period of the certificate for the es server. Defaults to 100 years.
 - **certificate_early_renewal_period**: Period before the certificate's expiry when Terraform will try to auto-renew the certificate for the es server. Defaults to 1 year. 
 - **key_length**: Key lenght of the certificate's private key. Defaults to 4096.
+
 
 ## Example
 
