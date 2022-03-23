@@ -28,6 +28,7 @@ locals {
       initial_masters = var.initial_masters
       s3_endpoint = var.s3_endpoint
       s3_protocol = var.s3_protocol
+      tls_enabled = var.tls_enabled
     }
   )
   es_runtime_config = templatefile(
@@ -39,6 +40,7 @@ locals {
       initial_masters = []
       s3_endpoint = var.s3_endpoint
       s3_protocol = var.s3_protocol
+      tls_enabled = var.tls_enabled
     }
   )
 }
@@ -59,9 +61,10 @@ data "template_cloudinit_config" "user_data" {
         s3_protocol = var.s3_protocol
         s3_access_key = var.s3_access_key
         s3_secret_key = var.s3_secret_key
-        server_key = tls_private_key.key.private_key_pem
-        server_certificate = tls_locally_signed_cert.certificate.cert_pem
-        ca_certificate = var.ca.certificate
+        server_key = var.tls_enabled ? tls_private_key.key.0.private_key_pem : ""
+        server_certificate = var.tls_enabled ? tls_locally_signed_cert.certificate.0.cert_pem : ""
+        ca_certificate = var.tls_enabled ? var.ca.certificate : ""
+        request_protocol = var.tls_enabled ? "https" : "http"
         ssh_admin_user = var.ssh_admin_user
         admin_user_password = var.admin_user_password
         ssh_admin_public_key = var.ssh_admin_public_key

@@ -126,10 +126,17 @@ variable "s3_secret_key" {
   sensitive = true
 }
 
+variable "tls_enabled" {
+  description = "Whether es should be setup to server requests over tls"
+  type = bool
+  default = true
+}
+
 variable "ca" {
   description = "The ca that will sign the es certificates. Should have the following keys: key, key_algorithm, certificate"
   type = any
   sensitive = true
+  default = {}
 }
 
 variable "organization" {

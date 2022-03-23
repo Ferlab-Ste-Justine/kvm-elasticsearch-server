@@ -6,6 +6,7 @@ xpack:
         username: anonymous_user
         roles: superuser
         authz_exception: true
+%{ if tls_enabled ~}
     http:
       ssl:
         enabled: true
@@ -19,6 +20,7 @@ xpack:
         key: "/etc/elasticsearch/tls/server.key"
         certificate: "/etc/elasticsearch/tls/server.pem"
         certificate_authorities: ["/etc/elasticsearch/tls/ca.pem"]
+%{ endif ~}
 path:
   data: /var/lib/elasticsearch
 network:
