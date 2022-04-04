@@ -173,9 +173,11 @@ packages:
   - jq
 runcmd:
   #Add dns servers
+%{ if length(nameserver_ips) > 0 ~}
   - echo "DNS=${join(" ", nameserver_ips)}" >> /etc/systemd/resolved.conf
   - systemctl stop systemd-resolved
   - systemctl start systemd-resolved
+%{ endif ~}
   #Install elasticsearch
   ##Get elasticsearch executables
   - wget -O /opt/elasticsearch-7.17.0-linux-x86_64.tar.gz https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.17.0-linux-x86_64.tar.gz
