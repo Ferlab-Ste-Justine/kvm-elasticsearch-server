@@ -76,14 +76,22 @@ It may or may not work fine in **Aws s3**, but after days of trying to make it w
 - **nameserver_ips**: Ips of nameservers that are to be used for master discovery. This list can be left blank if the network's dns servers already fulfill that role.
 - **is_master**: Whether the server is a master. Otherwise, it will be a worker.
 - **tls_enabled**: Whether the elasticsearch server should communicate over https or regular http.
+- **chrony**: Optional chrony configuration for when you need a more fine-grained ntp setup on your vm. It is an object with the following fields:
+  - **enabled**: If set the false (the default), chrony will not be installed and the vm ntp settings will be left to default.
+  - **servers**: List of ntp servers to sync from with each entry containing two properties, **url** and **options** (see: https://chrony.tuxfamily.org/doc/4.2/chrony.conf.html#server)
+  - **pools**: A list of ntp server pools to sync from with each entry containing two properties, **url** and **options** (see: https://chrony.tuxfamily.org/doc/4.2/chrony.conf.html#pool)
+  - **makestep**: An object containing remedial instructions if the clock of the vm is significantly out of sync at startup. It is an object containing two properties, **threshold** and **limit** (see: https://chrony.tuxfamily.org/doc/4.2/chrony.conf.html#makestep)
 
 The following variables are used to serve traffic over tls, if enabled:
-- **ca**: Certificate authority used to sign the certificate of the server. Should have the following keys: key, key_algorithm, certificate
-- **organization**: The es server certificate's organization. Defaults to **Ferlab**
-- **certificate_validity_period**: The validity period of the certificate for the es server. Defaults to 100 years.
-- **certificate_early_renewal_period**: Period before the certificate's expiry when Terraform will try to auto-renew the certificate for the es server. Defaults to 1 year. 
-- **key_length**: Key lenght of the certificate's private key. Defaults to 4096.
-
+- **ca**: Certificate authority used to sign the certificate of the server. It is an object with the following fields:
+  - **key**: Private key that was used to sign the ca certificate
+  - **key_algorithm**: Algorithm of the private key that was used to sign the ca certificate
+  - **certificate**: The ca's certificate 
+- **server_certificate**: Parameters for the server's certificate. It is an object with the following fields:
+  - **organization**: The es server certificate's organization. Defaults to **Ferlab**
+  - **certificate_validity_period**: The validity period of the certificate for the es server. Defaults to 100 years.
+  - **certificate_early_renewal_period**: Period before the certificate's expiry when Terraform will try to auto-renew the certificate for the es server. Defaults to 1 year. 
+  - **key_length**: Key lenght of the certificate's private key. Defaults to 4096.
 
 ## Example
 

@@ -70,6 +70,7 @@ data "template_cloudinit_config" "user_data" {
         ssh_admin_public_key = var.ssh_admin_public_key
         elasticsearch_boot_configuration = local.es_bootstrap_config
         elasticsearch_runtime_configuration = local.es_runtime_config
+        chrony = var.chrony
       }
     )
   }
