@@ -1,7 +1,7 @@
 resource "tls_private_key" "key" {
   count = var.tls_enabled ? 1 : 0
   algorithm   = "RSA"
-  rsa_bits = var.key_length
+  rsa_bits = var.server_certificate.key_length
 }
 
 resource "tls_cert_request" "request" {
@@ -11,7 +11,7 @@ resource "tls_cert_request" "request" {
 
   subject {
     common_name  = "masters"
-    organization = var.organization
+    organization = var.server_certificate.organization
   }
 
   ip_addresses = concat(
@@ -31,8 +31,8 @@ resource "tls_locally_signed_cert" "certificate" {
   ca_private_key_pem = var.ca.key
   ca_cert_pem        = var.ca.certificate
 
-  validity_period_hours = var.certificate_validity_period
-  early_renewal_hours = var.certificate_early_renewal_period
+  validity_period_hours = var.server_certificate.validity_period
+  early_renewal_hours = var.server_certificate.early_renewal_period
 
   allowed_uses = [
     "server_auth",

@@ -19,8 +19,24 @@ users:
     ssh_authorized_keys:
       - "${ssh_admin_public_key}"
 write_files:
-%{ if ca_certificate != "" ~}
+  #Chrony config
+%{ if chrony.enabled ~}
+  - path: /opt/chrony.conf
+    owner: root:root
+    permissions: "0444"
+    content: |
+%{ for server in chrony.servers ~}
+      server ${join(" ", concat([server.url], server.options))}
+%{ endfor ~}
+%{ for pool in chrony.pools ~}
+      pool ${join(" ", concat([pool.url], pool.options))}
+%{ endfor ~}
+      driftfile /var/lib/chrony/drift
+      makestep ${chrony.makestep.threshold} ${chrony.makestep.limit}
+      rtcsync
+%{ endif ~}
   #Elasticsearch tls files
+%{ if ca_certificate != "" ~}
   - path: /etc/elasticsearch/tls/server.key
     owner: root:root
     permissions: "0400"
@@ -171,7 +187,15 @@ packages:
   - software-properties-common
   - libdigest-sha-perl
   - jq
+%{ if chrony.enabled ~}
+  - chrony
+%{ endif ~}
 runcmd:
+  #Finalize Chrony Setup
+%{ if chrony.enabled ~}
+  - cp /opt/chrony.conf /etc/chrony/chrony.conf
+  - systemctl restart chrony.service 
+%{ endif ~}
   #Add dns servers
 %{ if length(nameserver_ips) > 0 ~}
   - echo "DNS=${join(" ", nameserver_ips)}" >> /etc/systemd/resolved.conf

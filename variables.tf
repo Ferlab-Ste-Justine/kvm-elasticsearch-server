@@ -45,7 +45,14 @@ variable "mac" {
 
 variable "macvtap_interfaces" {
   description = "List of macvtap interfaces. Mutually exclusive with the network_id, ip and mac fields. Each entry has the following keys: interface, prefix_length, ip, mac, gateway and dns_servers"
-  type        = list(any)
+  type        = list(object({
+    interface = string
+    prefix_length = string
+    ip = string
+    mac = string
+    gateway = string
+    dns_servers = list(string)
+  }))
   default = []
 }
 
@@ -134,31 +141,62 @@ variable "tls_enabled" {
 
 variable "ca" {
   description = "The ca that will sign the es certificates. Should have the following keys: key, key_algorithm, certificate"
-  type = any
+  type = object({
+    key = string
+    key_algorithm = string
+    certificate = string
+  })
   sensitive = true
-  default = {}
+  default = {
+    key = ""
+    key_algorithm = ""
+    certificate = ""
+  }
 }
 
-variable "organization" {
-  description = "The es servers certificates' organization"
-  type = string
-  default = "Ferlab"
+variable "server_certificate" {
+  description = "Parameters of the server's certificate. Should contain the following keys: organization, validity_period, early_renewal_period, key_length"
+  type = object({
+    organization = string
+    validity_period = number
+    early_renewal_period = number
+    key_length = number
+  })
+  default = {
+    organization = "Ferlab"
+    validity_period = 100*365*24
+    early_renewal_period = 365*24
+    key_length = 4096
+  }
 }
 
-variable "certificate_validity_period" {
-  description = "The es servers cluster's certificates' validity period in hours"
-  type = number
-  default = 100*365*24
-}
-
-variable "certificate_early_renewal_period" {
-  description = "The es servers cluster's certificates' early renewal period in hours"
-  type = number
-  default = 365*24
-}
-
-variable "key_length" {
-  description = "The key length of the certificates' private key"
-  type = number
-  default = 4096
+variable "chrony" {
+  description = "Chrony configuration for ntp. If enabled, chrony is installed and configured, else the default image ntp settings are kept"
+  type        = object({
+    enabled = bool,
+    //https://chrony.tuxfamily.org/doc/4.2/chrony.conf.html#server
+    servers = list(object({
+      url = string,
+      options = list(string)
+    })),
+    //https://chrony.tuxfamily.org/doc/4.2/chrony.conf.html#pool
+    pools = list(object({
+      url = string,
+      options = list(string)
+    })),
+    //https://chrony.tuxfamily.org/doc/4.2/chrony.conf.html#makestep
+    makestep = object({
+      threshold = number,
+      limit = number
+    })
+  })
+  default = {
+    enabled = false
+    servers = []
+    pools = []
+    makestep = {
+      threshold = 0,
+      limit = 0
+    }
+  }
 }
